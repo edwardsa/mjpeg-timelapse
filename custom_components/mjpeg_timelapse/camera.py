@@ -30,7 +30,7 @@ from homeassistant.const import (
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import TemplateError
-from homeassistant.helpers import config_validation as cv, entity_platform
+from homeassistant.helpers import config_validation as cv, entity_platform, template
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.reload import async_setup_reload_service
 import homeassistant.util.dt as dt_util
@@ -267,6 +267,9 @@ class MjpegTimelapseCamera(Camera):
         headers = {**self.headers}
         session = async_get_clientsession(self.hass)
         auth = None
+        url = template.Template(self.image_url, self.hass).async_render()
+        _LOGGER.info(url)
+
 
         if self.last_modified:
             headers["If-Modified-Since"] = self.last_modified
@@ -275,7 +278,7 @@ class MjpegTimelapseCamera(Camera):
             auth = aiohttp.BasicAuth(self.username, self.password, 'utf-8')
 
         try:
-            async with session.get(self.image_url, timeout=5, headers=headers, auth=auth) as res:
+            async with session.get(url, timeout=5, headers=headers, auth=auth) as res:
                 res.raise_for_status()
                 self._attr_available = True
 
@@ -333,7 +336,7 @@ class MjpegTimelapseCamera(Camera):
     def image_filenames(self):
         return sorted(self.image_dir.glob("*.jpg"))
 
-    def camera_image(self):
+    def camera_image(self, width: int | None = None, height: int | None = None):
         try:
             last_image = self.image_filenames().pop()
             with open(last_image, "rb") as file:
